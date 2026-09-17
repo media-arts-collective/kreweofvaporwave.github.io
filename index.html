@@ -35,5 +35,17 @@
     
 </td>
 </table>
+
+<!-- =^..^= nyan cutover proof: kreweofvaporwave.com moved to the media-arts-collective fork 2026-09-16. self-contained, pointer-events:none, blocks nothing. remove this block to revert. -->
+<div id="nyan" aria-hidden="true"><div class="nyan-rig"><span class="trail"></span><span class="cat">🐱</span></div></div>
+<div id="cutover-tag">&#10024; now served fresh by media-arts-collective &#10024;</div>
+<style>
+#nyan{position:fixed;top:38%;left:0;width:100%;height:80px;pointer-events:none;z-index:9999;overflow:hidden}
+.nyan-rig{position:absolute;left:-260px;display:flex;align-items:center;animation:nyanfly 7s linear infinite}
+.trail{width:220px;height:34px;border-radius:4px;background:repeating-linear-gradient(to bottom,#ff0044 0 6px,#ff9900 6px 12px,#ffee00 12px 18px,#33ff66 18px 24px,#00c3ff 24px 30px,#a855f7 30px 34px);box-shadow:0 0 14px #ff66cc}
+.cat{font-size:42px;line-height:1;filter:drop-shadow(0 0 8px #ff66cc)}
+@keyframes nyanfly{from{transform:translateX(0)}to{transform:translateX(calc(100vw + 320px))}}
+#cutover-tag{position:fixed;bottom:8px;right:10px;z-index:9999;font-family:monospace;font-size:12px;letter-spacing:1px;color:#ff66cc;text-shadow:0 0 6px #a855f7,0 0 2px #fff;pointer-events:none}
+</style>
 </body>
     
