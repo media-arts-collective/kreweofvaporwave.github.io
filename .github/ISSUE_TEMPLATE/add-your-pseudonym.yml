@@ -1,0 +1,28 @@
+name: Add your pseudonym to the roster
+description: Ask to have your pseudonym added to the VKV members page.
+title: "[roster] "
+labels: ["roster-request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This opens a pull request that adds your pseudonym to `vkvmembers.html`.
+        A maintainer still reviews and merges it — submitting this form does not
+        publish anything by itself.
+  - type: input
+    id: pseudonym
+    attributes:
+      label: Pseudonym
+      description: Exactly as you want it to appear on the roster.
+      placeholder: e.g. Neon Ferret
+    validations:
+      required: true
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Confirmation
+      options:
+        - label: I am a current member of the VKV mailing list.
+          required: true
+        - label: I understand VKV membership is pseudonymous, and this pseudonym is not my personal or professional identity.
+          required: true

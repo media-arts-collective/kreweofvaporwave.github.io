@@ -1,0 +1,111 @@
+name: Roster submission -> PR
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  open-pr:
+    if: contains(github.event.issue.labels.*.name, 'roster-request')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract pseudonym from issue form
+        id: extract
+        env:
+          BODY: ${{ github.event.issue.body }}
+        run: |
+          python3 - <<'PY'
+          import json, os, re, sys
+
+          body = os.environ["BODY"]
+          m = re.search(r"###\s*Pseudonym\s*\n+(.+?)(?:\n\s*\n|\Z)", body, re.S)
+          pseudonym = m.group(1).strip() if m else ""
+          # Issue forms render "_No response_" for a field left empty.
+          pseudonym = pseudonym.splitlines()[0].strip() if pseudonym else ""
+
+          def fail(msg):
+              print(f"::error::{msg}")
+              sys.exit(1)
+
+          if not pseudonym or pseudonym == "_No response_":
+              fail("no pseudonym found in the issue body")
+          if len(pseudonym) > 80:
+              fail("pseudonym is too long (80 char max)")
+          if re.search(r"[<>]", pseudonym):
+              fail("pseudonym may not contain '<' or '>'")
+
+          with open("data/members.json", encoding="utf-8") as f:
+              members = json.load(f)
+
+          out_path = os.environ["GITHUB_OUTPUT"]
+          if any(p.lower() == pseudonym.lower() for p in members):
+              with open(out_path, "a") as out:
+                  out.write("skip=true\n")
+              sys.exit(0)
+
+          members.append(pseudonym)
+          members.sort(key=str.casefold)
+
+          with open("data/members.json", "w", encoding="utf-8") as f:
+              json.dump(members, f, indent=2, ensure_ascii=False)
+              f.write("\n")
+
+          with open(out_path, "a") as out:
+              out.write("skip=false\n")
+              out.write(f"pseudonym={pseudonym}\n")
+          PY
+
+      - name: Create pull request
+        if: steps.extract.outputs.skip != 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: roster/issue-${{ github.event.issue.number }}
+          title: "Add ${{ steps.extract.outputs.pseudonym }} to the members roster"
+          commit-message: "Add ${{ steps.extract.outputs.pseudonym }} to the members roster"
+          labels: roster-request
+          body: |
+            NO-DECISION: automated roster submission via issue form; adding the entry is not a judgment call, only merging it is.
+
+            Closes #${{ github.event.issue.number }}.
+
+            Submitted through the "Add your pseudonym to the roster" issue form.
+            This PR does not auto-merge — a maintainer reviews and merges it.
+
+            <!-- DEFERRED -->
+            - none
+            <!-- /DEFERRED -->
+
+            <!-- DELIVERS -->
+            - path:data/members.json -- adds the submitted pseudonym
+            <!-- /DELIVERS -->
+
+      - name: Comment on issue
+        if: steps.extract.outputs.skip != 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: "Opened a pull request adding this pseudonym to the roster. A maintainer will review and merge it."
+            })
+
+      - name: Comment duplicate
+        if: steps.extract.outputs.skip == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: "That pseudonym is already on the roster — nothing to add."
+            })
