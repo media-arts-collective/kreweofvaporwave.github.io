@@ -70,9 +70,27 @@ map, `enlist@` → `kreweofvaporwave+subscribe@googlegroups.com`. SMTP-level
 recipient rewriting preserves `From` and the original DKIM signature. An
 address cannot be both a group and a routing target, so the group must go.
 
-Cost of that switch: **no auto-reply.** Auto-replies are a Groups feature, so
-the join instructions have to live on the web page instead. That is the only
-reason `vkvjoin.html` exists — it is not decoration.
+### The auto-reply must send AS enlist@
+
+Group auto-replies are hardcoded to send from `<group>+noreply@<domain>` and
+get spam-filtered almost everywhere — a short automated message telling you to
+check your spam folder and reply with a code is phishing-shaped, and a `+noreply`
+address has no sending reputation to overcome it. A dedicated `enlist-notify`
+group was built and abandoned for exactly this.
+
+What works: `enlist@` is an **alias on a real user**, so mail to it lands in a
+mailbox, and a Gmail filter on `to:enlist@` sends a template **from `enlist@`**.
+The sender just mailed that address, so the reply arrives in a thread they
+started — the same correspondence signal that gets `+subconfirm` delivered.
+
+This forces the routing rule to use **Also deliver to** rather than *Replace
+recipient*: replacing sends the mail away from the mailbox, so no filter fires.
+Set Options to "non-recognized and recognized addresses" since `enlist@` now
+resolves. Routing does not rewrite `From` — that is a Groups redistribution
+behavior, and routing is not redistribution.
+
+Join instructions therefore live in the auto-reply, not on the website. There
+is no join page; `vkvmembers.html` just names the address.
 
 Last resort if the routing rule also fails: publish
 `kreweofvaporwave+subscribe@googlegroups.com` directly. No relay hop means
