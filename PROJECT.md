@@ -51,23 +51,45 @@ Deliverability note: self-subscribe beats invites. The subscriber mails the
 group first, so the reply arrives in a thread they started. Cold invites from
 `noreply@groups.google.com` are the ones that get spam-foldered.
 
-### enlist@ relay — two settings silently break it
+### enlist@ relay — a Google Group CANNOT do this job
 
-`enlist@kreweofvaporwave.com` is a Workspace group on the domain whose only
-member is `kreweofvaporwave+subscribe@googlegroups.com`.
+`enlist@kreweofvaporwave.com` exists to mask the ugly `+subscribe` address.
+Implementing it as a **Workspace group is a dead end** (tested, Sept 2026):
 
-- **Default sender must be `Author's address`.** `+subscribe` acts on the `From`
-  header; if Groups rewrites it, the *alias* gets subscribed, not the person.
-  Silent, no error anywhere.
-- **Message moderation and spam handling must be OFF** on `enlist@`. It is
-  plumbing, not a list — anything held in a queue is a person who believes they
-  joined and didn't. Auto-replies also only fire after approval when moderation
-  is on. This is the deliberate inverse of the krewe list, which *does*
-  moderate.
-- Unverified risk: Groups rewrites `From` for senders whose domain publishes
-  strict DMARC (`p=reject`/`quarantine`). Gmail is `p=none` and fine; yahoo/aol
-  and many corporate domains are not. If the alias fails for some senders and
-  not others, this is why — fall back to publishing `+subscribe` directly.
+Google Groups rewrites the `From` header when the *author's* domain publishes
+DMARC `p=quarantine` or `p=reject`, because relaying it intact would fail DMARC
+at the receiver. `+subscribe` acts on `From`, so it then subscribes **the alias
+instead of the person**, and the confirmation mail comes back to the group.
+Confirmed against a strict-DMARC sender. This is compliance behavior, not a
+setting — no group configuration disables it, and `Default sender: Author's
+address` does not save you. Gmail is `p=none` so it passes, which makes this
+fail for *some* senders only: the worst possible failure shape.
+
+Use a **routing rule** instead: Admin → Gmail → Routing → Recipient address
+map, `enlist@` → `kreweofvaporwave+subscribe@googlegroups.com`. SMTP-level
+recipient rewriting preserves `From` and the original DKIM signature. An
+address cannot be both a group and a routing target, so the group must go.
+
+Cost of that switch: **no auto-reply.** Auto-replies are a Groups feature, so
+the join instructions have to live on the web page instead. That is the only
+reason `vkvjoin.html` exists — it is not decoration.
+
+Last resort if the routing rule also fails: publish
+`kreweofvaporwave+subscribe@googlegroups.com` directly. No relay hop means
+nothing can rewrite anything. Ugly and unsayable, but universal.
+
+## Domain mail
+
+`kreweofvaporwave.com` is on Google Workspace (MX + SPF). DKIM and DMARC were
+absent until Sept 2026 — Workspace does NOT enable DKIM for you, and mail from
+the domain was being spam-foldered as a result. Now published:
+
+- `google._domainkey` — DKIM, generated via Admin → Gmail → Authenticate email
+- `_dmarc` — `p=none` monitoring only. **Do not move to `p=reject`**; strict
+  DMARC on this domain would create new relay problems.
+
+Cross-domain `rua` needs the report domain to opt in with a TXT record at
+`kreweofvaporwave.com._report._dmarc.<report domain>`, or reports never arrive.
 
 ### Deliberate settings (don't "fix" these)
 
