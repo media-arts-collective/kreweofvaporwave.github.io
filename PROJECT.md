@@ -135,3 +135,47 @@ everyone's existing mail filters costs more than the manual paste it saves.
 warns about removing members, export the roster first — recovery is manual,
 one member at a time, each generating mail to someone who thought they were
 already subscribed.
+
+## The members roster
+
+`vkvmembers.html` renders a union of two sources, shuffled on every load:
+
+1. The `<li>`s hardcoded in `<ul id="roster">` — the legacy krewe. These are
+   credits, not a directory; a 2019 pseudonym is still a real credit, so they
+   are never pruned. They double as the **fallback**: if `members.json` is
+   missing or malformed the page renders exactly as it did before `loadroster()`
+   existed.
+2. `members.json` — `{"names": [...]}`, written by `tools/roster-sync.gs`.
+
+### Contract with the Google side
+
+`tools/roster-sync.gs` is the source of truth for the Apps Script that executes
+in Google, bound to the pseudonym Form. It is checked in here on purpose:
+off-repo config that this repo's code depends on is precisely the failure mode
+this file exists to prevent.
+
+- The script reads the Form question titled **`Pseudonym`** (`PSEUDONYM_QUESTION`).
+  Rename the question and the sync silently produces an empty roster.
+- Latest response per respondent email wins, so **resubmitting the form is how a
+  member edits their pseudonym**. No login, no saved receipt.
+- Email addresses are read only to key that dedupe. They are never written to
+  `members.json`, never committed, never leave Google.
+- Auth is a fine-grained GitHub PAT in Script Properties, scoped `Contents:
+  read/write` on this repo alone. No Google credential is created and none
+  leaves the account — which is why this runs in Apps Script rather than a
+  GitHub Action, where the Google key would have to live in repo secrets.
+
+### Rejected designs
+
+- **Netlify portal with member accounts.** Auth for ~75 pseudonyms is the same
+  identity-vs-friction trap as the one-click join form, for a smaller payoff.
+- **A Sheet published to web, fetched client-side.** Worked, but staked the page
+  on a CORS behavior and on never misclicking "Entire document" in the publish
+  dialog — with member emails one tab away. Committing a names-only JSON file
+  removes both risks and the runtime dependency.
+- **Form "Limit to 1 response"** for durable edit links. Forces Google sign-in,
+  which excludes the external members on the list from submitting at all.
+  Excluding members to improve the rare edit path is backwards.
+- **Manual paste from the Groups member table.** Google Groups does have a
+  member-editable Display Name, but no API on a consumer group to read it back,
+  so the sync would be a recurring human step. Those do not happen.
