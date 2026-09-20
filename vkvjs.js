@@ -57,3 +57,65 @@ if(video.canPlayType('video/webm')) {
     video.setAttribute('src', activeVideoUrl + '.mp4');
 }
 }
+
+/**
+ * Members page roster. The <li>s already in the page are the legacy krewe and
+ * double as the fallback: if members.json is missing or malformed, the page
+ * renders exactly as it did before this function existed.
+ *
+ * members.json is written by tools/roster-sync.gs when someone submits the
+ * pseudonym form. It holds names only, never email addresses.
+ */
+function loadroster() {
+  var list = document.getElementById("roster");
+  if (!list) return;
+
+  var legacy = [].map.call(list.getElementsByTagName("li"), function (li) {
+    return li.textContent.trim();
+  });
+  shuffleinto(list, legacy);
+
+  fetch("members.json")
+    .then(function (response) {
+      if (!response.ok) throw new Error(response.status);
+      return response.json();
+    })
+    .then(function (roster) {
+      if (!roster || !Array.isArray(roster.names)) return;
+      shuffleinto(list, dedupenames(legacy.concat(roster.names)));
+    })
+    .catch(function () {
+      /* legacy roster is already on the page */
+    });
+}
+
+function dedupenames(names) {
+  var seen = {};
+  return names.filter(function (name) {
+    var key = name.toLowerCase();
+    if (!name || seen[key]) return false;
+    seen[key] = true;
+    return true;
+  });
+}
+
+// Nobody gets to be alphabetically first forever.
+function shuffleinto(list, names) {
+  var shuffled = names.slice();
+  for (var i = shuffled.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var swap = shuffled[i];
+    shuffled[i] = shuffled[j];
+    shuffled[j] = swap;
+  }
+
+  var fragment = document.createDocumentFragment();
+  shuffled.forEach(function (name) {
+    var li = document.createElement("li");
+    li.textContent = name;
+    fragment.appendChild(li);
+  });
+
+  list.innerHTML = "";
+  list.appendChild(fragment);
+}

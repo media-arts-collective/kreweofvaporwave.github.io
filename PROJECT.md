@@ -135,3 +135,147 @@ everyone's existing mail filters costs more than the manual paste it saves.
 warns about removing members, export the roster first — recovery is manual,
 one member at a time, each generating mail to someone who thought they were
 already subscribed.
+
+## The members roster
+
+`vkvmembers.html` renders a union of two sources, shuffled on every load:
+
+1. The `<li>`s hardcoded in `<ul id="roster">` — the legacy krewe. These are
+   credits, not a directory; a 2019 pseudonym is still a real credit, so they
+   are never pruned. They double as the **fallback**: if `members.json` is
+   missing or malformed the page renders exactly as it did before `loadroster()`
+   existed.
+2. `members.json` — `{"names": [...]}`, written by `tools/roster-sync/`.
+
+### Contract with the Google side
+
+`tools/roster-sync/` is a clasp-managed Apps Script project — same shape as the
+`media-arts-collective/wavebucks` projects (`appsscript.json`, `.claspignore`,
+a `TestsLocal.js` that re-declares its logic inline for plain `node`). It is
+checked in here on purpose: off-repo config that this repo's code depends on is
+precisely the failure mode this file exists to prevent.
+
+`Setup.js:setup()` installs the polling trigger and nothing else. There is no
+Form: members mail `roster@kreweofvaporwave.com` and **the `From` header is the
+identity** — the address someone mails from is the one they are on the list
+with. Nothing is typed, nothing is verified, nothing needs a login, and mailing
+again is how a pseudonym changes.
+
+A mailbox beat a Google Form on every axis that mattered: no URL to distribute,
+no Google sign-in that would have excluded members on non-Google addresses, and
+no second place for member addresses to accumulate. It is also the house
+pattern — `scribaSenatus` in `media-arts-collective/wavebucks` is the same
+shape, a trigger scanning an inbox.
+
+- `roster@kreweofvaporwave.com` is an **alias on a real user**, so mail to it
+  lands in a mailbox a Gmail search can reach. No routing rule, unlike
+  `enlist@` — this address must not be forwarded anywhere.
+- `Setup.js:ensureAlias_()` creates that alias itself through the Admin SDK.
+  The Directory API **does** cover this, because it is a Workspace user in a
+  domain we control — the impossibility recorded above is specific to the
+  consumer `@googlegroups.com` group, and the two must not be conflated.
+  Needs a super admin; falls back to a named console path in the error.
+- The whole file is rebuilt from every message to that address on each run, so
+  nothing depends on read state or labels surviving. Latest message per sender
+  wins.
+- Sender addresses are read only to key that dedupe. They are never written to
+  `members.json`, never committed, never leave Google.
+- Auth is a fine-grained GitHub PAT in Script Properties, scoped `Contents:
+  read/write` on this repo alone. No Google credential is created and none
+  leaves the account — which is why this runs in Apps Script rather than a
+  GitHub Action, where the Google key would have to live in repo secrets.
+
+### Rejected designs
+
+- **Netlify portal with member accounts.** Auth for ~75 pseudonyms is the same
+  identity-vs-friction trap as the one-click join form, for a smaller payoff.
+- **A Sheet published to web, fetched client-side.** Worked, but staked the page
+  on a CORS behavior and on never misclicking "Entire document" in the publish
+  dialog — with member emails one tab away. Committing a names-only JSON file
+  removes both risks and the runtime dependency.
+- **A Google Form.** Needed a URL distributed to everyone, and its identity was
+  a typed, unverified email field — strictly worse than a `From` header. Its
+  sign-in option would have excluded the external members on the list entirely,
+  and its response sheet was a second place for member addresses to sit.
+- **Manual paste from the Groups member table.** Google Groups does have a
+  member-editable Display Name, but no API on a consumer group to read it back,
+  so the sync would be a recurring human step. Those do not happen.
+
+### Two repos share this name
+
+- **`media-arts-collective/kreweofvaporwave.github.io`** -- this clone's
+  `origin`, created 2026-08-30, actively pushed, Pages-served. **This is the
+  live site** (hf7y/realisateur#1221) and the only correct target for anything
+  writing through the GitHub API.
+- **`kreweofvaporwave/kreweofvaporwave.github.io`** -- a *different* repo on the
+  `kreweofvaporwave` **user** account, the 2019 original, last pushed
+  2025-12-10. Shares history, so commit SHAs resolve in both and a lookup
+  "succeeding" proves nothing.
+
+`gh repo view` reports the **user** repo, because this clone has an `upstream`
+remote marked `gh-resolved = base`. Trust `git remote get-url origin`, not `gh`.
+A sync pointed at the user repo would commit successfully to a site nobody
+serves.
+
+### Why Apps Script
+
+`GmailApp` reads the mailbox and `ScriptApp` installs the trigger; neither is
+reachable from outside Apps Script. The one browser step left is authorizing
+the Gmail scope on the first run, which no credential avoids.
+
+### Credentials are already provisioned estate-wide — do not mint new ones
+
+**clasp runs as the krewe, not as Zach.** `~/.clasprc.json` holds *named* slots;
+clasp 3 selects one with `-u/--user`:
+
+- `--user aedile` → `kreweofvaporwave@kreweofvaporwave.com` ← **use this one**
+- default (no flag) → `dangerpine@gmail.com`
+
+The slot is named for the first project that used it, not for the identity it
+carries, which is a trap worth knowing. A disposable clone needs no login — only
+the path to the auth file, which clasp reads from `-A/--auth` or the
+`clasp_config_auth` environment variable.
+
+**GitHub auth is the `unattended-vaporwave` App, not a PAT.** App id 4813610,
+installation 158679998 on `media-arts-collective`, `repository_selection: all`,
+so it already covers this repo (hf7y/realisateur#1221).
+
+`GithubAuth.js` signs an RS256 JWT with the App key and exchanges it for an
+installation token, cached 45 minutes. The three properties it needs —
+`GITHUB_APP_ID`, `GITHUB_INSTALLATION_ID`, `GITHUB_APP_KEY` — are **identical in
+every Apps Script project in the estate**. Copy them; never mint anything.
+
+That is the whole point: a PAT is a web-UI ceremony repeated once per project
+forever, and the annoyance compounds even though each one is cheap. The App is
+minted once.
+
+**But the key belongs on exactly one host, and that host is vaporwave.** So the
+preferred mode is the other way round: `WebApp.js` publishes the roster as JSON
+and something on vaporwave — which already authenticates git as the App
+(hf7y/realisateur#1136) — reads it and commits. `syncRoster()` and
+`GithubAuth.js` are the fallback for when that does not exist yet, and running
+them copies the key into a second place. **A key in two places is rotated in
+neither.** Tracked at hf7y/realisateur#1258 and #1262.
+
+### Where the Apps Script project should live
+
+`tools/roster-sync/` is a clasp project in a website repo, while the other three
+clasp projects live together in `media-arts-collective/wavebucks`. Whether it
+moves is open: **wavebucks#59**. Default if nobody decides is that it stays
+here — it works either way; the question is legibility, not function.
+
+### Nothing merges without a review
+
+`master` protection: **1 approving review required, zero required status
+checks.** Admins are `hf7y`, `adamdavies1915`, `bobtheavenger42`.
+
+Consequences worth knowing before reasoning about a PR here:
+
+- A merge publishes to the public web immediately — Pages serves `master`.
+- `--auto` cannot bypass the review; it queues the merge behind it. So arming
+  auto-merge is safe, and issue #4 forbidding it is belt-and-braces rather than
+  the thing standing between a PR and the live site.
+- "Checks are green" means nothing: there are none. A PR reading as mergeable
+  can still sit indefinitely on `reviewDecision: REVIEW_REQUIRED` — #1, #2 and
+  #3 did, for two days, while tooling reported them as self-landing
+  (hf7y/realisateur#1260).
