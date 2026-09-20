@@ -170,6 +170,11 @@ shape, a trigger scanning an inbox.
 - `roster@kreweofvaporwave.com` is an **alias on a real user**, so mail to it
   lands in a mailbox a Gmail search can reach. No routing rule, unlike
   `enlist@` — this address must not be forwarded anywhere.
+- `Setup.js:ensureAlias_()` creates that alias itself through the Admin SDK.
+  The Directory API **does** cover this, because it is a Workspace user in a
+  domain we control — the impossibility recorded above is specific to the
+  consumer `@googlegroups.com` group, and the two must not be conflated.
+  Needs a super admin; falls back to a named console path in the error.
 - The whole file is rebuilt from every message to that address on each run, so
   nothing depends on read state or labels surviving. Latest message per sender
   wins.
