@@ -8,12 +8,10 @@
 
 function setup() {
   var props = PropertiesService.getScriptProperties();
-  if (!props.getProperty('GITHUB_TOKEN')) {
-    throw new Error('Set GITHUB_TOKEN (fine-grained PAT, Contents: read/write) first.');
-  }
   if (!props.getProperty('GITHUB_REPO')) {
     throw new Error('Set GITHUB_REPO to media-arts-collective/kreweofvaporwave.github.io first.');
   }
+  githubToken_();  // fail here, not fifteen minutes from now on the first trigger
 
   ScriptApp.getProjectTriggers().forEach(function (trigger) {
     if (trigger.getHandlerFunction() === 'syncRoster') ScriptApp.deleteTrigger(trigger);

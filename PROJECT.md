@@ -233,13 +233,18 @@ the path to the auth file, which clasp reads from `-A/--auth` or the
 
 **GitHub auth is the `unattended-vaporwave` App, not a PAT.** App id 4813610,
 installation 158679998 on `media-arts-collective`, `repository_selection: all`,
-so it already covers this repo (hf7y/realisateur#1221). `bin/selfdev-gh-app.sh`
-mints installation tokens, with `--repos` to scope them (unwired — see
-hf7y/realisateur#671). Unlike a PAT, an App token *can* be minted by API and
-expires in an hour.
+so it already covers this repo (hf7y/realisateur#1221).
 
-A PAT would be a new long-lived secret standing beside an App that already
-covers the repo. Ecosystem question tracked at hf7y/realisateur#1258.
+`GithubAuth.js` signs an RS256 JWT with the App key and exchanges it for an
+installation token, cached 45 minutes. The three properties it needs —
+`GITHUB_APP_ID`, `GITHUB_INSTALLATION_ID`, `GITHUB_APP_KEY` — are **identical in
+every Apps Script project in the estate**. Copy them; never mint anything.
+
+That is the whole point: a PAT is a web-UI ceremony repeated once per project
+forever, and the annoyance compounds even though each one is cheap. The App is
+minted once. `GithubAuth.js` is self-contained so it can later become a shared
+library the way `wavebucksCore` is consumed by `scribaSenatus`, at which point
+even the copying stops. Tracked at hf7y/realisateur#1258.
 
 ### Where the Apps Script project should live
 

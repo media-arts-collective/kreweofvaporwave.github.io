@@ -10,8 +10,7 @@
  * Sender addresses are read only to key that dedupe. They are never written to
  * members.json, never committed, and never leave Google.
  *
- * Script Properties:
- *   GITHUB_TOKEN   fine-grained PAT, Contents: read/write, this repo only
+ * Script Properties (GitHub auth itself lives in GithubAuth.js):
  *   GITHUB_REPO    media-arts-collective/kreweofvaporwave.github.io
  *                  The ORG repo -- this clone's `origin`, live, Pages-served.
  *                  `kreweofvaporwave/kreweofvaporwave.github.io` is a DIFFERENT
@@ -120,11 +119,10 @@ function commitIfChanged_(path, content) {
   var props = PropertiesService.getScriptProperties();
   var repo = props.getProperty('GITHUB_REPO');
   var branch = props.getProperty('GITHUB_BRANCH') || 'master';
-  var token = props.getProperty('GITHUB_TOKEN');
-  if (!repo || !token) throw new Error('Set GITHUB_REPO and GITHUB_TOKEN in Script Properties.');
+  if (!repo) throw new Error('Set GITHUB_REPO in Script Properties.');
 
   var url = 'https://api.github.com/repos/' + repo + '/contents/' + path;
-  var headers = { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json' };
+  var headers = { Authorization: 'Bearer ' + githubToken_(), Accept: 'application/vnd.github+json' };
   var encoded = Utilities.base64Encode(content, Utilities.Charset.UTF_8);
 
   var existing = UrlFetchApp.fetch(url + '?ref=' + encodeURIComponent(branch), {
