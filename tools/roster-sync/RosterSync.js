@@ -6,9 +6,11 @@
  *
  * Script Properties:
  *   GITHUB_TOKEN   fine-grained PAT, Contents: read/write, this repo only
- *   GITHUB_REPO    kreweofvaporwave/kreweofvaporwave.github.io
- *                  (canonical slug; the website remote's media-arts-collective
- *                   path only works by 301, and a redirected PUT drops its body)
+ *   GITHUB_REPO    media-arts-collective/kreweofvaporwave.github.io
+ *                  The ORG repo -- this clone's `origin`, live, Pages-served.
+ *                  `kreweofvaporwave/kreweofvaporwave.github.io` is a DIFFERENT
+ *                  repo: the 2019 user-account original, stale, and what
+ *                  `gh repo view` resolves to because `upstream` is gh-resolved.
  *   GITHUB_BRANCH  master
  *   FORM_ID        written by setup()
  */

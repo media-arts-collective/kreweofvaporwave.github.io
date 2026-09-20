@@ -187,12 +187,21 @@ it is a create, not a sync.
   member-editable Display Name, but no API on a consumer group to read it back,
   so the sync would be a recurring human step. Those do not happen.
 
-### Repo slug
+### Two repos share this name
 
-The canonical slug is **`kreweofvaporwave/kreweofvaporwave.github.io`**. The git
-remote still points at `media-arts-collective/...`, which resolves only via a
-301; a redirected `PUT` drops its body, so anything writing through the GitHub
-API must use the canonical slug.
+- **`media-arts-collective/kreweofvaporwave.github.io`** -- this clone's
+  `origin`, created 2026-08-30, actively pushed, Pages-served. **This is the
+  live site** (hf7y/realisateur#1221) and the only correct target for anything
+  writing through the GitHub API.
+- **`kreweofvaporwave/kreweofvaporwave.github.io`** -- a *different* repo on the
+  `kreweofvaporwave` **user** account, the 2019 original, last pushed
+  2025-12-10. Shares history, so commit SHAs resolve in both and a lookup
+  "succeeding" proves nothing.
+
+`gh repo view` reports the **user** repo, because this clone has an `upstream`
+remote marked `gh-resolved = base`. Trust `git remote get-url origin`, not `gh`.
+A sync pointed at the user repo would commit successfully to a site nobody
+serves.
 
 ### Why Apps Script and not the REST APIs
 
@@ -202,15 +211,28 @@ collection mode. `FormApp` inside Apps Script sets both, and `ScriptApp`
 installs the trigger, which the Apps Script API also cannot do. So the whole
 setup is code, run once from the editor.
 
-`clasp` is the delegation path: `clasp login` once, then `clasp push` / `clasp
-logs` / `clasp open` with no further browser consent. That one login is
-unavoidable — every route to a Google token starts at a browser.
+### Credentials are already provisioned estate-wide — do not mint new ones
 
-**No GitHub token can be minted by API** — GitHub deliberately has no such
-endpoint, since a leaked token could otherwise mint more. The fine-grained PAT
-is made in the web UI, once. The `gh` CLI token on the dev machine is *not* a
-substitute: it carries `admin:org` and org-wide `repo`, so putting it in Script
-Properties would trade one repo's file for the whole organization.
+**clasp runs as the krewe, not as Zach.** `~/.clasprc.json` holds *named* slots;
+clasp 3 selects one with `-u/--user`:
+
+- `--user aedile` → `kreweofvaporwave@kreweofvaporwave.com` ← **use this one**
+- default (no flag) → `dangerpine@gmail.com`
+
+The slot is named for the first project that used it, not for the identity it
+carries, which is a trap worth knowing. A disposable clone needs no login — only
+the path to the auth file, which clasp reads from `-A/--auth` or the
+`clasp_config_auth` environment variable.
+
+**GitHub auth is the `unattended-vaporwave` App, not a PAT.** App id 4813610,
+installation 158679998 on `media-arts-collective`, `repository_selection: all`,
+so it already covers this repo (hf7y/realisateur#1221). `bin/selfdev-gh-app.sh`
+mints installation tokens, with `--repos` to scope them (unwired — see
+hf7y/realisateur#671). Unlike a PAT, an App token *can* be minted by API and
+expires in an hour.
+
+A PAT would be a new long-lived secret standing beside an App that already
+covers the repo. Ecosystem question tracked at hf7y/realisateur#1258.
 
 ### Where the Apps Script project should live
 
