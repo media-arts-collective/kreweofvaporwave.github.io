@@ -247,9 +247,15 @@ every Apps Script project in the estate**. Copy them; never mint anything.
 
 That is the whole point: a PAT is a web-UI ceremony repeated once per project
 forever, and the annoyance compounds even though each one is cheap. The App is
-minted once. `GithubAuth.js` is self-contained so it can later become a shared
-library the way `wavebucksCore` is consumed by `scribaSenatus`, at which point
-even the copying stops. Tracked at hf7y/realisateur#1258.
+minted once.
+
+**But the key belongs on exactly one host, and that host is vaporwave.** So the
+preferred mode is the other way round: `WebApp.js` publishes the roster as JSON
+and something on vaporwave — which already authenticates git as the App
+(hf7y/realisateur#1136) — reads it and commits. `syncRoster()` and
+`GithubAuth.js` are the fallback for when that does not exist yet, and running
+them copies the key into a second place. **A key in two places is rotated in
+neither.** Tracked at hf7y/realisateur#1258 and #1262.
 
 ### Where the Apps Script project should live
 

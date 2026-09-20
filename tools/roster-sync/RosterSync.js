@@ -23,6 +23,11 @@ var ROSTER_ADDRESS = 'roster@kreweofvaporwave.com';
 var ROSTER_PATH = 'members.json';
 var MAX_THREADS = 300;
 
+/**
+ * Commit the roster from inside Apps Script. Requires a GitHub credential here,
+ * which is the mode to avoid if the App key can stay on vaporwave -- see
+ * WebApp.js for the pull-based alternative, where this never runs.
+ */
 function syncRoster() {
   var payload = JSON.stringify({ names: rosterFromResponses(collectMail_()) }, null, 2) + '\n';
   commitIfChanged_(ROSTER_PATH, payload);
