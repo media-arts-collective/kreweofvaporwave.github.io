@@ -211,3 +211,10 @@ endpoint, since a leaked token could otherwise mint more. The fine-grained PAT
 is made in the web UI, once. The `gh` CLI token on the dev machine is *not* a
 substitute: it carries `admin:org` and org-wide `repo`, so putting it in Script
 Properties would trade one repo's file for the whole organization.
+
+### Where the Apps Script project should live
+
+`tools/roster-sync/` is a clasp project in a website repo, while the other three
+clasp projects live together in `media-arts-collective/wavebucks`. Whether it
+moves is open: **wavebucks#59**. Default if nobody decides is that it stays
+here — it works either way; the question is legibility, not function.
