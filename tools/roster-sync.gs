@@ -9,7 +9,9 @@
  *   1. Open the Form -> three dots -> Apps Script. Paste this file.
  *   2. Project Settings -> Script Properties:
  *        GITHUB_TOKEN   fine-grained PAT, Contents: read/write, this repo only
- *        GITHUB_REPO    media-arts-collective/kreweofvaporwave.github.io
+ *        GITHUB_REPO    kreweofvaporwave/kreweofvaporwave.github.io
+ *                       (canonical slug; the git remote's media-arts-collective
+ *                        path only works by 301, and a redirected PUT drops its body)
  *        GITHUB_BRANCH  master
  *   3. Triggers -> Add trigger -> syncRoster -> From form -> On form submit.
  *   4. Run syncRoster once by hand to authorize and to seed the file.

@@ -179,3 +179,10 @@ this file exists to prevent.
 - **Manual paste from the Groups member table.** Google Groups does have a
   member-editable Display Name, but no API on a consumer group to read it back,
   so the sync would be a recurring human step. Those do not happen.
+
+### Repo slug
+
+The canonical slug is **`kreweofvaporwave/kreweofvaporwave.github.io`**. The git
+remote still points at `media-arts-collective/...`, which resolves only via a
+301; a redirected `PUT` drops its body, so anything writing through the GitHub
+API must use the canonical slug.
