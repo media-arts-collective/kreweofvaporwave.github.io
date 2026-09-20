@@ -145,17 +145,24 @@ already subscribed.
    are never pruned. They double as the **fallback**: if `members.json` is
    missing or malformed the page renders exactly as it did before `loadroster()`
    existed.
-2. `members.json` — `{"names": [...]}`, written by `tools/roster-sync.gs`.
+2. `members.json` — `{"names": [...]}`, written by `tools/roster-sync/`.
 
 ### Contract with the Google side
 
-`tools/roster-sync.gs` is the source of truth for the Apps Script that executes
-in Google, bound to the pseudonym Form. It is checked in here on purpose:
-off-repo config that this repo's code depends on is precisely the failure mode
-this file exists to prevent.
+`tools/roster-sync/` is a clasp-managed Apps Script project — same shape as the
+`media-arts-collective/wavebucks` projects (`appsscript.json`, `.claspignore`,
+a `TestsLocal.js` that re-declares its logic inline for plain `node`). It is
+checked in here on purpose: off-repo config that this repo's code depends on is
+precisely the failure mode this file exists to prevent.
 
-- The script reads the Form question titled **`Pseudonym`** (`PSEUDONYM_QUESTION`).
-  Rename the question and the sync silently produces an empty roster.
+`Setup.js:setup()` creates the Form, sets every option, and installs the submit
+trigger. Nothing about the Form is configured by hand, so nothing about it can
+drift from what is in version control. Re-running it creates a *second* Form —
+it is a create, not a sync.
+
+- The script reads the Form question titled **`Pseudonym`** (`PSEUDONYM_QUESTION`,
+  declared in `Setup.js`). Rename the question in the Forms UI and the sync
+  silently produces an empty roster.
 - Latest response per respondent email wins, so **resubmitting the form is how a
   member edits their pseudonym**. No login, no saved receipt.
 - Email addresses are read only to key that dedupe. They are never written to
@@ -186,3 +193,21 @@ The canonical slug is **`kreweofvaporwave/kreweofvaporwave.github.io`**. The git
 remote still points at `media-arts-collective/...`, which resolves only via a
 301; a redirected `PUT` drops its body, so anything writing through the GitHub
 API must use the canonical slug.
+
+### Why Apps Script and not the REST APIs
+
+The Forms REST API cannot set the two options that protect member emails —
+`publishingSummary` (any respondent reading every response) and the email
+collection mode. `FormApp` inside Apps Script sets both, and `ScriptApp`
+installs the trigger, which the Apps Script API also cannot do. So the whole
+setup is code, run once from the editor.
+
+`clasp` is the delegation path: `clasp login` once, then `clasp push` / `clasp
+logs` / `clasp open` with no further browser consent. That one login is
+unavoidable — every route to a Google token starts at a browser.
+
+**No GitHub token can be minted by API** — GitHub deliberately has no such
+endpoint, since a leaked token could otherwise mint more. The fine-grained PAT
+is made in the web UI, once. The `gh` CLI token on the dev machine is *not* a
+substitute: it carries `admin:org` and org-wide `repo`, so putting it in Script
+Properties would trade one repo's file for the whole organization.
