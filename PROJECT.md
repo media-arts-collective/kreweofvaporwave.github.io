@@ -240,3 +240,19 @@ covers the repo. Ecosystem question tracked at hf7y/realisateur#1258.
 clasp projects live together in `media-arts-collective/wavebucks`. Whether it
 moves is open: **wavebucks#59**. Default if nobody decides is that it stays
 here — it works either way; the question is legibility, not function.
+
+### Nothing merges without a review
+
+`master` protection: **1 approving review required, zero required status
+checks.** Admins are `hf7y`, `adamdavies1915`, `bobtheavenger42`.
+
+Consequences worth knowing before reasoning about a PR here:
+
+- A merge publishes to the public web immediately — Pages serves `master`.
+- `--auto` cannot bypass the review; it queues the merge behind it. So arming
+  auto-merge is safe, and issue #4 forbidding it is belt-and-braces rather than
+  the thing standing between a PR and the live site.
+- "Checks are green" means nothing: there are none. A PR reading as mergeable
+  can still sit indefinitely on `reviewDecision: REVIEW_REQUIRED` — #1, #2 and
+  #3 did, for two days, while tooling reported them as self-landing
+  (hf7y/realisateur#1260).
