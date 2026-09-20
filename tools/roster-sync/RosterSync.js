@@ -1,8 +1,14 @@
 /**
- * VKV roster sync. Form submit -> rebuild members.json -> commit to GitHub.
+ * VKV roster sync. Members mail their pseudonym to ROSTER_ADDRESS; a polling
+ * trigger rebuilds members.json and commits it to GitHub.
  *
- * Email addresses are read here only to key the dedupe. They are never written
- * to members.json, never committed, and never leave Google.
+ * The From header is the identity -- the address someone mails from is the one
+ * they are on the list with. Nothing is typed, nothing is verified, and nothing
+ * needs a login. Latest mail per sender wins, so **sending again is how you
+ * change your pseudonym**.
+ *
+ * Sender addresses are read only to key that dedupe. They are never written to
+ * members.json, never committed, and never leave Google.
  *
  * Script Properties:
  *   GITHUB_TOKEN   fine-grained PAT, Contents: read/write, this repo only
@@ -12,35 +18,78 @@
  *                  repo: the 2019 user-account original, stale, and what
  *                  `gh repo view` resolves to because `upstream` is gh-resolved.
  *   GITHUB_BRANCH  master
- *   FORM_ID        written by setup()
  */
 
+var ROSTER_ADDRESS = 'roster@kreweofvaporwave.com';
 var ROSTER_PATH = 'members.json';
+var MAX_THREADS = 300;
 
 function syncRoster() {
-  var formId = PropertiesService.getScriptProperties().getProperty('FORM_ID');
-  if (!formId) throw new Error('FORM_ID missing — run setup() first.');
-
-  var responses = FormApp.openById(formId).getResponses().map(function (response) {
-    var pseudonym = '';
-    response.getItemResponses().forEach(function (item) {
-      if (item.getItem().getTitle().trim() === PSEUDONYM_QUESTION) {
-        pseudonym = String(item.getResponse()).trim();
-      }
-    });
-    return { email: response.getRespondentEmail() || '', pseudonym: pseudonym };
-  });
-
-  var payload = JSON.stringify({ names: rosterFromResponses(responses) }, null, 2) + '\n';
+  var payload = JSON.stringify({ names: rosterFromResponses(collectMail_()) }, null, 2) + '\n';
   commitIfChanged_(ROSTER_PATH, payload);
 }
 
 /**
- * Latest response per respondent wins, which is what makes resubmitting the
- * form the edit mechanism. getResponses() returns oldest-first, so a later
- * submission simply overwrites the earlier key.
+ * Every message ever sent to the address, oldest first -- not just unread ones.
+ * The file is rebuilt from scratch each run, so the mailbox is the record and
+ * nothing depends on read state or labels surviving.
+ */
+function collectMail_() {
+  var messages = [];
+  GmailApp.search('to:' + ROSTER_ADDRESS, 0, MAX_THREADS).forEach(function (thread) {
+    thread.getMessages().forEach(function (message) {
+      messages.push(message);
+    });
+  });
+
+  messages.sort(function (a, b) {
+    return a.getDate() - b.getDate();
+  });
+
+  return messages.map(function (message) {
+    return {
+      email: parseSender(message.getFrom()),
+      pseudonym: parsePseudonym(message.getSubject(), message.getPlainBody())
+    };
+  });
+}
+
+/** "Dat Boi <a@example.com>" -> "a@example.com"; a bare address passes through. */
+function parseSender(from) {
+  var angled = String(from || '').match(/<([^>]+)>/);
+  return (angled ? angled[1] : String(from || '')).trim().toLowerCase();
+}
+
+/**
+ * The mailto link prefills `Subject: pseudonym: `, so the subject is the happy
+ * path. Someone who clears it and types in the body still works: first line
+ * that is not quoted, not a signature, and not empty.
  *
- * Mirrored in TestsLocal.js — change both.
+ * Mirrored in TestsLocal.js -- change both.
+ */
+function parsePseudonym(subject, body) {
+  var tagged = String(subject || '').match(/pseudonym\s*[:\-]\s*(.+)/i);
+  if (tagged && tagged[1].trim()) return tagged[1].trim();
+
+  var lines = String(body || '').split('\n');
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i].trim();
+    if (!line || line.charAt(0) === '>') continue;
+    if (line === '--' || line.indexOf('-- ') === 0) break;
+    if (/^on .*wrote:$/i.test(line)) break;
+    return line;
+  }
+
+  var bare = String(subject || '').trim();
+  return /^(re|fwd)\s*:/i.test(bare) ? '' : bare;
+}
+
+/**
+ * Latest message per sender wins, which is what makes mailing again the edit
+ * mechanism. collectMail_ sorts oldest-first, so a later message simply
+ * overwrites the earlier key.
+ *
+ * Mirrored in TestsLocal.js -- change both.
  */
 function rosterFromResponses(responses) {
   var byRespondent = {};
@@ -93,7 +142,7 @@ function commitIfChanged_(path, content) {
   }
 
   var body = {
-    message: 'Roster: sync pseudonyms from the form',
+    message: 'Roster: sync pseudonyms from the mailbox',
     content: encoded,
     branch: branch,
     committer: { name: 'VKV Roster Overlord', email: 'noreply@kreweofvaporwave.com' }

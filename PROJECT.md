@@ -155,17 +155,25 @@ a `TestsLocal.js` that re-declares its logic inline for plain `node`). It is
 checked in here on purpose: off-repo config that this repo's code depends on is
 precisely the failure mode this file exists to prevent.
 
-`Setup.js:setup()` creates the Form, sets every option, and installs the submit
-trigger. Nothing about the Form is configured by hand, so nothing about it can
-drift from what is in version control. Re-running it creates a *second* Form —
-it is a create, not a sync.
+`Setup.js:setup()` installs the polling trigger and nothing else. There is no
+Form: members mail `roster@kreweofvaporwave.com` and **the `From` header is the
+identity** — the address someone mails from is the one they are on the list
+with. Nothing is typed, nothing is verified, nothing needs a login, and mailing
+again is how a pseudonym changes.
 
-- The script reads the Form question titled **`Pseudonym`** (`PSEUDONYM_QUESTION`,
-  declared in `Setup.js`). Rename the question in the Forms UI and the sync
-  silently produces an empty roster.
-- Latest response per respondent email wins, so **resubmitting the form is how a
-  member edits their pseudonym**. No login, no saved receipt.
-- Email addresses are read only to key that dedupe. They are never written to
+A mailbox beat a Google Form on every axis that mattered: no URL to distribute,
+no Google sign-in that would have excluded members on non-Google addresses, and
+no second place for member addresses to accumulate. It is also the house
+pattern — `scribaSenatus` in `media-arts-collective/wavebucks` is the same
+shape, a trigger scanning an inbox.
+
+- `roster@kreweofvaporwave.com` is an **alias on a real user**, so mail to it
+  lands in a mailbox a Gmail search can reach. No routing rule, unlike
+  `enlist@` — this address must not be forwarded anywhere.
+- The whole file is rebuilt from every message to that address on each run, so
+  nothing depends on read state or labels surviving. Latest message per sender
+  wins.
+- Sender addresses are read only to key that dedupe. They are never written to
   `members.json`, never committed, never leave Google.
 - Auth is a fine-grained GitHub PAT in Script Properties, scoped `Contents:
   read/write` on this repo alone. No Google credential is created and none
@@ -180,9 +188,10 @@ it is a create, not a sync.
   on a CORS behavior and on never misclicking "Entire document" in the publish
   dialog — with member emails one tab away. Committing a names-only JSON file
   removes both risks and the runtime dependency.
-- **Form "Limit to 1 response"** for durable edit links. Forces Google sign-in,
-  which excludes the external members on the list from submitting at all.
-  Excluding members to improve the rare edit path is backwards.
+- **A Google Form.** Needed a URL distributed to everyone, and its identity was
+  a typed, unverified email field — strictly worse than a `From` header. Its
+  sign-in option would have excluded the external members on the list entirely,
+  and its response sheet was a second place for member addresses to sit.
 - **Manual paste from the Groups member table.** Google Groups does have a
   member-editable Display Name, but no API on a consumer group to read it back,
   so the sync would be a recurring human step. Those do not happen.
@@ -203,13 +212,11 @@ remote marked `gh-resolved = base`. Trust `git remote get-url origin`, not `gh`.
 A sync pointed at the user repo would commit successfully to a site nobody
 serves.
 
-### Why Apps Script and not the REST APIs
+### Why Apps Script
 
-The Forms REST API cannot set the two options that protect member emails —
-`publishingSummary` (any respondent reading every response) and the email
-collection mode. `FormApp` inside Apps Script sets both, and `ScriptApp`
-installs the trigger, which the Apps Script API also cannot do. So the whole
-setup is code, run once from the editor.
+`GmailApp` reads the mailbox and `ScriptApp` installs the trigger; neither is
+reachable from outside Apps Script. The one browser step left is authorizing
+the Gmail scope on the first run, which no credential avoids.
 
 ### Credentials are already provisioned estate-wide — do not mint new ones
 
