@@ -63,8 +63,9 @@ if(video.canPlayType('video/webm')) {
  * double as the fallback: if members.json is missing or malformed, the page
  * renders exactly as it did before this function existed.
  *
- * members.json is written by tools/roster-sync.gs when someone submits the
- * pseudonym form. It holds names only, never email addresses.
+ * members.json is written by rosterSync/ (media-arts-collective/wavebucks)
+ * when someone mails their pseudonym to roster@kreweofvaporwave.com. It
+ * holds names only, never email addresses.
  */
 function loadroster() {
   var list = document.getElementById("roster");
