@@ -145,15 +145,18 @@ already subscribed.
    are never pruned. They double as the **fallback**: if `members.json` is
    missing or malformed the page renders exactly as it did before `loadroster()`
    existed.
-2. `members.json` — `{"names": [...]}`, written by `tools/roster-sync/`.
+2. `members.json` — `{"names": [...]}`, written by the Apps Script project
+   described below.
 
 ### Contract with the Google side
 
-`tools/roster-sync/` is a clasp-managed Apps Script project — same shape as the
-`media-arts-collective/wavebucks` projects (`appsscript.json`, `.claspignore`,
-a `TestsLocal.js` that re-declares its logic inline for plain `node`). It is
-checked in here on purpose: off-repo config that this repo's code depends on is
-precisely the failure mode this file exists to prevent.
+The Apps Script project that writes `members.json` is `rosterSync/` in
+`media-arts-collective/wavebucks` (moved there per wavebucks#59, landed in
+wavebucks#120 — it used to be `tools/roster-sync/` in this repo; that copy is
+deleted as of this PR, superseded, not duplicated). This repo keeps
+`members.json` and the rendering code; that repo keeps the source that writes
+it. Full design rationale and the mailbox-based identity model stay in this
+file; `rosterSync/README.md` covers only what runs from there.
 
 `Setup.js:setup()` installs the polling trigger and nothing else. There is no
 Form: members mail `roster@kreweofvaporwave.com` and **the `From` header is the
@@ -217,65 +220,37 @@ remote marked `gh-resolved = base`. Trust `git remote get-url origin`, not `gh`.
 A sync pointed at the user repo would commit successfully to a site nobody
 serves.
 
-### Why Apps Script
+### Why Apps Script, and why it moved
 
 `GmailApp` reads the mailbox and `ScriptApp` installs the trigger; neither is
 reachable from outside Apps Script. The one browser step left is authorizing
 the Gmail scope on the first run, which no credential avoids.
 
-### Credentials are already provisioned estate-wide — do not mint new ones
+It used to be checked in here as `tools/roster-sync/`, the only one of the
+estate's four clasp projects not living with the other three. wavebucks#59
+settled that split was legibility debt, not a functional need, and Zach
+ordered the move (wavebucks#59, 2026-09-29: "merge the work into the mono
+repo"); wavebucks#120 landed it as `rosterSync/`. Credential details (the
+`unattended-vaporwave` GitHub App, Script Properties, the vaporwave-host
+preference for `WebApp.js` over `syncRoster()`) now live in
+`media-arts-collective/wavebucks`'s `rosterSync/README.md` next to the code
+that uses them, rather than duplicated here where they'd drift.
 
-**clasp runs as the krewe, not as Zach.** `~/.clasprc.json` holds *named* slots;
-clasp 3 selects one with `-u/--user`:
+### Nothing enforces the review but the habit of asking for one
 
-- `--user aedile` → `kreweofvaporwave@kreweofvaporwave.com` ← **use this one**
-- default (no flag) → `dangerpine@gmail.com`
-
-The slot is named for the first project that used it, not for the identity it
-carries, which is a trap worth knowing. A disposable clone needs no login — only
-the path to the auth file, which clasp reads from `-A/--auth` or the
-`clasp_config_auth` environment variable.
-
-**GitHub auth is the `unattended-vaporwave` App, not a PAT.** App id 4813610,
-installation 158679998 on `media-arts-collective`, `repository_selection: all`,
-so it already covers this repo (hf7y/realisateur#1221).
-
-`GithubAuth.js` signs an RS256 JWT with the App key and exchanges it for an
-installation token, cached 45 minutes. The three properties it needs —
-`GITHUB_APP_ID`, `GITHUB_INSTALLATION_ID`, `GITHUB_APP_KEY` — are **identical in
-every Apps Script project in the estate**. Copy them; never mint anything.
-
-That is the whole point: a PAT is a web-UI ceremony repeated once per project
-forever, and the annoyance compounds even though each one is cheap. The App is
-minted once.
-
-**But the key belongs on exactly one host, and that host is vaporwave.** So the
-preferred mode is the other way round: `WebApp.js` publishes the roster as JSON
-and something on vaporwave — which already authenticates git as the App
-(hf7y/realisateur#1136) — reads it and commits. `syncRoster()` and
-`GithubAuth.js` are the fallback for when that does not exist yet, and running
-them copies the key into a second place. **A key in two places is rotated in
-neither.** Tracked at hf7y/realisateur#1258 and #1262.
-
-### Where the Apps Script project should live
-
-`tools/roster-sync/` is a clasp project in a website repo, while the other three
-clasp projects live together in `media-arts-collective/wavebucks`. Whether it
-moves is open: **wavebucks#59**. Default if nobody decides is that it stays
-here — it works either way; the question is legibility, not function.
-
-### Nothing merges without a review
-
-`master` protection: **1 approving review required, zero required status
-checks.** Admins are `hf7y`, `adamdavies1915`, `bobtheavenger42`.
+`master` protection, measured directly rather than assumed (`gh api
+repos/media-arts-collective/kreweofvaporwave.github.io/branches/master/protection`,
+2026-11-08): **no required reviews, no required status checks.** This
+contradicts an earlier version of this section that claimed one approving
+review was required — it was not re-measured before being written down, and
+nothing here enforces it; only a prior commit's claim did.
 
 Consequences worth knowing before reasoning about a PR here:
 
 - A merge publishes to the public web immediately — Pages serves `master`.
-- `--auto` cannot bypass the review; it queues the merge behind it. So arming
-  auto-merge is safe, and issue #4 forbidding it is belt-and-braces rather than
-  the thing standing between a PR and the live site.
+- Nothing on GitHub's side stops `--auto` or a direct merge from landing
+  unreviewed the moment a PR is mergeable. Issue #4's ban on merging it
+  yourself or arming auto-merge is therefore the *only* control, not a second
+  belt alongside branch protection — treat it accordingly.
 - "Checks are green" means nothing: there are none. A PR reading as mergeable
-  can still sit indefinitely on `reviewDecision: REVIEW_REQUIRED` — #1, #2 and
-  #3 did, for two days, while tooling reported them as self-landing
-  (hf7y/realisateur#1260).
+  proves nothing about whether anyone has looked at it.
